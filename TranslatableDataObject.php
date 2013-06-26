@@ -239,24 +239,25 @@ class TranslatableDataObject extends DataExtension {
 	 * @param string $filter_lang If provided, filter the translations by a given lang
 	 * @return array
 	 */
-	public function getTranslationFields($filter_name = null, $filter_lang = null, $fieldset = null) {
+	public function getTranslationFields($filter_name = null, $filter_locale = null) {
 		$fields = array ();
-		$default = Config::inst()->get("LangUtils","default_lang");
-		foreach(self::$translation_manifest[$this->owner->class] as $field => $type) {
-			if(!self::get_lang($field)) continue;
-			if($filter_name && ($filter_name != self::get_basename($field))) continue;
-			if($filter_lang && ($filter_lang != self::get_lang($field))) continue;
-			if(self::get_lang($field) == $default) continue;
-			if($o = $this->owner->dbObject(self::get_basename($field))) {
-				$formField = $o->scaffoldFormField();
-				$formField->setName($field);
-				$formField->setTitle($formField->Title()." (".self::get_lang($field).")");
-				$fields[] = $formField;
-			}
+		$fieldLabels = $this->owner->fieldLabels(false);
+		foreach(self::$translation_manifest[$this->owner->class] as $newFieldName => $type) {
+			$newFieldNameArray = explode("__", $newFieldName); 
+			$locale = array_pop($newFieldNameArray); 
+			$fieldNameWithoutLocale = array_shift($newFieldNameArray); 
+			//start filters
+			if($filter_name && $filter_name != $fieldNameWithoutLocale) continue;
+			if($filter_locale && $filter_locale != $locale) continue;
+			//end filters
+			$originalDBField = $this->owner->obj($fieldNameWithoutLocale);
+			$newDBField = DBField::create_field($originalDBField->class, "");
+			$newDBField->setName($newFieldName);
+			$label = isset($fieldLabels[$fieldNameWithoutLocale]) ? $fieldLabels[$fieldNameWithoutLocale] : $fieldNameWithoutLocale;
+			$fields[] = $newDBField->scaffoldFormField($label, $locale);
 		}
 		return $fields;
 	}
-	
 		
 }
 
